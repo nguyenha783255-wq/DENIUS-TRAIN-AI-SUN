@@ -82,7 +82,17 @@ function normalizeRound(raw) {
 }
 
 function normalizePayload(raw) {
-    const arr = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
+    const candidates = [
+        raw?.data,
+        raw?.history,
+        raw?.records,
+        raw?.result,
+        raw?.items,
+        raw?.data?.data,
+        raw?.result?.data,
+        raw
+    ];
+    const arr = candidates.find(Array.isArray) || [];
     const map = new Map();
     for (const item of arr) {
         const r = normalizeRound(item);
@@ -658,9 +668,15 @@ function saveStateSoon() {
 
 async function fetchHistory() {
     try {
-        const res = await axios.get(API_URL, {
+        const joiner = API_URL.includes('?') ? '&' : '?';
+        const requestUrl = API_URL + joiner + 't=' + Date.now();
+        const res = await axios.get(requestUrl, {
             timeout: 12000,
-            headers: { 'User-Agent': 'DENIUS-Temporal-Core/2.0' }
+            headers: {
+                'User-Agent': 'DENIUS-Temporal-Core/2.1',
+                'Accept': 'application/json'
+            },
+            validateStatus: s => s >= 200 && s < 400
         });
         const data = normalizePayload(res.data);
         appStats.lastFetch = isoVN();
@@ -668,7 +684,14 @@ async function fetchHistory() {
         appStats.apiErrors = 0;
         appStats.lastError = null;
         appStats.syncs++;
-        if (!data.length) throw new Error('API không trả về dữ liệu hợp lệ');
+        if (!data.length) {
+            const shape = Array.isArray(res.data)
+                ? 'array'
+                : (res.data && typeof res.data === 'object'
+                    ? 'object keys=' + Object.keys(res.data).slice(0, 12).join(',')
+                    : typeof res.data);
+            throw new Error('API trả payload nhưng không map được phiên. ' + shape);
+        }
         const result = brain.ingest(data);
         const latest = data[data.length - 1];
         // Prediction always uses only history that is already complete.
