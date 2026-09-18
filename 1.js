@@ -57,15 +57,18 @@ function normSide(v) {
 }
 
 function normalizeRound(raw) {
-    if (!raw || raw.phien == null) return null;
-    const phien = Number(raw.phien);
+    if (!raw || typeof raw !== 'object') return null;
+    // Accept both ASCII aliases and the Vietnamese fields used by the source API.
+    const phienRaw = raw.phien ?? raw['phiên'] ?? raw.session;
+    if (phienRaw == null) return null;
+    const phien = Number(phienRaw);
     if (!Number.isFinite(phien)) return null;
-    const d1 = Number(raw.d1 ?? raw.xuc_xac_1 ?? raw.dice1 ?? 0);
-    const d2 = Number(raw.d2 ?? raw.xuc_xac_2 ?? raw.dice2 ?? 0);
-    const d3 = Number(raw.d3 ?? raw.xuc_xac_3 ?? raw.dice3 ?? 0);
-    const totalRaw = raw.tong ?? raw.total ?? (d1 && d2 && d3 ? d1 + d2 + d3 : null);
+    const d1 = Number(raw.d1 ?? raw['d1'] ?? raw.xuc_xac_1 ?? raw.dice1 ?? 0);
+    const d2 = Number(raw.d2 ?? raw['d2'] ?? raw.xuc_xac_2 ?? raw.dice2 ?? 0);
+    const d3 = Number(raw.d3 ?? raw['d3'] ?? raw.xuc_xac_3 ?? raw.dice3 ?? 0);
+    const totalRaw = raw.tong ?? raw['tổng'] ?? raw.total ?? (d1 && d2 && d3 ? d1 + d2 + d3 : null);
     const tong = totalRaw == null ? null : Number(totalRaw);
-    const ket_qua = normSide(raw.ket_qua ?? raw.ketqua ?? raw.result);
+    const ket_qua = normSide(raw.ket_qua ?? raw.ketqua ?? raw['kết quả'] ?? raw.result);
     if (!ket_qua) return null;
     return {
         phien,
